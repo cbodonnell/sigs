@@ -18,25 +18,6 @@ type SignedString struct {
 	HashSum   []byte
 }
 
-func main() {
-	privateKey, err := ParseRSAPrivateKey("/users/craig/crypto/private.pem")
-	if err != nil {
-		panic(err)
-	}
-
-	signedString, err := SignString(privateKey, "this is a secret message!")
-	if err != nil {
-		panic(err)
-	}
-
-	err = CheckSignature(&privateKey.PublicKey, signedString)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("signature verified")
-}
-
 func ReadPrivateKey(b []byte) (*rsa.PrivateKey, error) {
 	privPem, _ := pem.Decode(b)
 	if privPem.Type != "RSA PRIVATE KEY" {
@@ -103,7 +84,7 @@ func ParseRSAPublicKey(rsaPublicKeyLocation string) (*rsa.PublicKey, error) {
 func SignString(privateKey *rsa.PrivateKey, s string) (SignedString, error) {
 	var signedString SignedString
 
-	hashSum, err := HashSum(s)
+	hashSum, err := HashSum([]byte(s))
 	if err != nil {
 		return signedString, err
 	}
@@ -119,8 +100,7 @@ func SignString(privateKey *rsa.PrivateKey, s string) (SignedString, error) {
 
 }
 
-func HashSum(s string) ([]byte, error) {
-	b := []byte(s)
+func HashSum(b []byte) ([]byte, error) {
 	msgHash := sha256.New()
 	_, err := msgHash.Write(b)
 	if err != nil {
