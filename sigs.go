@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -109,10 +110,28 @@ func HashSum(b []byte) ([]byte, error) {
 	return msgHash.Sum(nil), nil
 }
 
-func CheckSignature(publicKey *rsa.PublicKey, signedString SignedString) error {
-	err := rsa.VerifyPSS(publicKey, crypto.SHA256, signedString.HashSum, signedString.Signature, nil)
+func Check(msg string, signatureString string, publicKeyString string) error {
+	publicKey, err := ReadPublicKey([]byte(publicKeyString))
 	if err != nil {
 		return err
 	}
+
+	hashSum, err := HashSum([]byte(msg))
+	if err != nil {
+		return err
+	}
+
+	signature, err := base64.StdEncoding.DecodeString(signatureString)
+	if err != nil {
+		return err
+	}
+
+	signedString := SignedString{Signature: signature, HashSum: hashSum}
+
+	err = rsa.VerifyPSS(publicKey, crypto.SHA256, signedString.HashSum, signedString.Signature, nil)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
