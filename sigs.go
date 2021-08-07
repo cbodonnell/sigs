@@ -13,12 +13,6 @@ import (
 	"io/ioutil"
 )
 
-// SignedString struct
-type SignedString struct {
-	Signature []byte
-	HashSum   []byte
-}
-
 func ReadPrivateKey(b []byte) (*rsa.PrivateKey, error) {
 	privPem, _ := pem.Decode(b)
 	if privPem.Type != "RSA PRIVATE KEY" {
@@ -82,26 +76,22 @@ func ParseRSAPublicKey(rsaPublicKeyLocation string) (*rsa.PublicKey, error) {
 	return ReadPublicKey(pub)
 }
 
-func SignString(privateKey *rsa.PrivateKey, s string) (SignedString, error) {
-	var signedString SignedString
-
-	hashSum, err := HashSum([]byte(s))
+func SignString(privateKey *rsa.PrivateKey, s string) (string, error) {
+	hashSum, err := hashSum([]byte(s))
 	if err != nil {
-		return signedString, err
+		return "", err
 	}
-	signedString.HashSum = hashSum
 
-	signature, err := rsa.SignPSS(rand.Reader, privateKey, crypto.SHA256, signedString.HashSum, nil)
+	signature, err := rsa.SignPSS(rand.Reader, privateKey, crypto.SHA256, hashSum, nil)
 	if err != nil {
-		return signedString, err
+		return "", err
 	}
-	signedString.Signature = signature
 
-	return signedString, nil
+	return base64.StdEncoding.EncodeToString(signature), nil
 
 }
 
-func HashSum(b []byte) ([]byte, error) {
+func hashSum(b []byte) ([]byte, error) {
 	msgHash := sha256.New()
 	_, err := msgHash.Write(b)
 	if err != nil {
@@ -116,7 +106,7 @@ func Check(msg string, signatureString string, publicKeyString string) error {
 		return err
 	}
 
-	hashSum, err := HashSum([]byte(msg))
+	hashSum, err := hashSum([]byte(msg))
 	if err != nil {
 		return err
 	}
@@ -126,9 +116,7 @@ func Check(msg string, signatureString string, publicKeyString string) error {
 		return err
 	}
 
-	signedString := SignedString{Signature: signature, HashSum: hashSum}
-
-	err = rsa.VerifyPSS(publicKey, crypto.SHA256, signedString.HashSum, signedString.Signature, nil)
+	err = rsa.VerifyPSS(publicKey, crypto.SHA256, hashSum, signature, nil)
 	if err != nil {
 		return err
 	}
