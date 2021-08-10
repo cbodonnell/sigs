@@ -105,7 +105,7 @@ func Digest(b []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	digest, err := base64.StdEncoding.DecodeString(string(hashSum))
+	digest := base64.StdEncoding.EncodeToString(hashSum)
 	if err != nil {
 		return "", err
 	}
