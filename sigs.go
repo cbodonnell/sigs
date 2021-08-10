@@ -100,6 +100,18 @@ func hashSum(b []byte) ([]byte, error) {
 	return msgHash.Sum(nil), nil
 }
 
+func Digest(b []byte) (string, error) {
+	hashSum, err := hashSum(b)
+	if err != nil {
+		return "", err
+	}
+	digest, err := base64.StdEncoding.DecodeString(string(hashSum))
+	if err != nil {
+		return "", err
+	}
+	return string(digest), nil
+}
+
 func Check(msg string, signatureString string, publicKeyString string) error {
 	publicKey, err := ReadPublicKey([]byte(publicKeyString))
 	if err != nil {
