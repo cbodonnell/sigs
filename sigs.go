@@ -82,7 +82,7 @@ func SignString(privateKey *rsa.PrivateKey, s string) (string, error) {
 		return "", err
 	}
 
-	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, crypto.SHA256, hashSum)
+	signature, err := rsa.SignPSS(rand.Reader, privateKey, crypto.SHA256, hashSum, nil)
 	if err != nil {
 		return "", err
 	}
@@ -128,7 +128,7 @@ func Check(msg string, signatureString string, publicKeyString string) error {
 		return err
 	}
 
-	err = rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hashSum, signature)
+	err = rsa.VerifyPSS(publicKey, crypto.SHA256, hashSum, signature, nil)
 	if err != nil {
 		return err
 	}
