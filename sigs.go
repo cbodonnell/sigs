@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -195,4 +196,102 @@ func SignRequest(req *http.Request, data []byte, privateKey string, keyID string
 	)
 	req.Header.Set("Signature", sigHeader)
 	return nil
+}
+
+// Verify the Signature header for a request is valid.
+// The request body should be provided separately.
+// The lookupPubkey function takes a keyname and returns a public key.
+// Returns keyname if known, and/or error.
+func VerifyRequest(req *http.Request, content []byte, fetchPublicKeyString func(string) (string, error)) (string, error) {
+	sighdr := req.Header.Get("Signature")
+	if sighdr == "" {
+		return "", fmt.Errorf("no signature header")
+	}
+
+	var re_sighdrval = regexp.MustCompile(`(.*)="(.*)"`)
+
+	var keyname, algo, heads, sig string
+	for _, v := range strings.Split(sighdr, ",") {
+		m := re_sighdrval.FindStringSubmatch(v)
+		if len(m) != 3 {
+			return keyname, fmt.Errorf("bad scan: %s from %s\n", v, sighdr)
+		}
+		switch m[1] {
+		case "keyId":
+			keyname = m[2]
+		case "algorithm":
+			algo = m[2]
+		case "headers":
+			heads = m[2]
+		case "signature":
+			sig = m[2]
+		default:
+			return keyname, fmt.Errorf("bad sig val: %s", m[1])
+		}
+	}
+	if keyname == "" || algo == "" || heads == "" || sig == "" {
+		return keyname, fmt.Errorf("missing a sig value")
+	}
+
+	required := make(map[string]bool)
+	required["(request-target)"] = true
+	required["host"] = true
+	required["digest"] = true
+	required["date"] = true
+	headers := strings.Split(heads, " ")
+	var stuff []string
+	for _, h := range headers {
+		var s string
+		switch h {
+		case "(request-target)":
+			s = strings.ToLower(req.Method) + " " + req.URL.RequestURI()
+		case "host":
+			s = req.Host
+			if s == "" {
+				return keyname, fmt.Errorf("warning: no host header value")
+			}
+		case "digest":
+			s = req.Header.Get(h)
+			digest, err := Digest(content)
+			if err != nil {
+				return keyname, err
+			}
+			expv := "SHA-256=" + digest
+			if s != expv {
+				return keyname, fmt.Errorf("digest header '%s' did not match content", s)
+			}
+		case "date":
+			s = req.Header.Get(h)
+			d, err := time.Parse(http.TimeFormat, s)
+			if err != nil {
+				return keyname, fmt.Errorf("error parsing date header: %s", err)
+			}
+			now := time.Now()
+			if d.Before(now.Add(-30*time.Minute)) || d.After(now.Add(30*time.Minute)) {
+				return keyname, fmt.Errorf("date header '%s' out of range", s)
+			}
+		default:
+			s = req.Header.Get(h)
+		}
+		delete(required, h)
+		stuff = append(stuff, h+": "+s)
+	}
+	if len(required) > 0 {
+		var missing []string
+		for h := range required {
+			missing = append(missing, h)
+		}
+		return keyname, fmt.Errorf("required httpsig headers missing (%s)", strings.Join(missing, ","))
+	}
+
+	msg := strings.Join(stuff, "\n")
+	publicKeyString, err := fetchPublicKeyString(keyname)
+	if err != nil {
+		return keyname, err
+	}
+	err = Check(msg, sig, publicKeyString)
+	if err != nil {
+		return keyname, err
+	}
+	return keyname, nil
 }
