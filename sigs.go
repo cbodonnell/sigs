@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -307,9 +306,7 @@ func VerifyRequest(req *http.Request, content []byte, fetchPublicKeyString func(
 	if err != nil {
 		return keyname, err
 	}
-	log.Println(fmt.Sprintf("msg: %s", msg))
-	log.Println(fmt.Sprintf("sig: %s", sig))
-	log.Println(fmt.Sprintf("publicKeyString: %s", publicKeyString))
+
 	err = Check(msg, sig, publicKeyString)
 	if err != nil {
 		return keyname, err
