@@ -1,20 +1,5 @@
-// This is a fork of https://humungus.tedunangst.com/r/webs/httpsig
-
-//
-// Copyright (c) 2019 Ted Unangst <tedu@tedunangst.com>
-//
-// Permission to use, copy, modify, and distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
-//
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-// ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-// ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-// OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
+// sigs is a package that provides utilities implementing the
+// http signature protocol: https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures
 package sigs
 
 import (
@@ -34,6 +19,7 @@ import (
 	"time"
 )
 
+// ReadPrivateKey reads a byte array and returns a pointer to a PrivateKey
 func ReadPrivateKey(b []byte) (*rsa.PrivateKey, error) {
 	privPem, _ := pem.Decode(b)
 	if privPem.Type != "RSA PRIVATE KEY" {
@@ -56,6 +42,7 @@ func ReadPrivateKey(b []byte) (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
+// ParseRSAPrivateKey takes a file path and reads the private key
 func ParseRSAPrivateKey(rsaPrivateKeyLocation string) (*rsa.PrivateKey, error) {
 	priv, err := ioutil.ReadFile(rsaPrivateKeyLocation)
 	if err != nil {
@@ -65,6 +52,7 @@ func ParseRSAPrivateKey(rsaPrivateKeyLocation string) (*rsa.PrivateKey, error) {
 	return ReadPrivateKey(priv)
 }
 
+// ReadPublicKey reads a byte array and returns a pointer to a PublicKey
 func ReadPublicKey(b []byte) (*rsa.PublicKey, error) {
 	pubPem, _ := pem.Decode(b)
 	if pubPem == nil {
@@ -88,6 +76,7 @@ func ReadPublicKey(b []byte) (*rsa.PublicKey, error) {
 	return pubKey, nil
 }
 
+// ParseRSAPrivateKey takes a file path and reads the public key
 func ParseRSAPublicKey(rsaPublicKeyLocation string) (*rsa.PublicKey, error) {
 	pub, err := ioutil.ReadFile(rsaPublicKeyLocation)
 	if err != nil {
@@ -97,6 +86,7 @@ func ParseRSAPublicKey(rsaPublicKeyLocation string) (*rsa.PublicKey, error) {
 	return ReadPublicKey(pub)
 }
 
+// Sign string returns the base64 encoded signature of a string signed by a PrivateKey
 func SignString(privateKey *rsa.PrivateKey, s string) (string, error) {
 	hashSum, err := hashSum([]byte(s))
 	if err != nil {
@@ -109,7 +99,6 @@ func SignString(privateKey *rsa.PrivateKey, s string) (string, error) {
 	}
 
 	return base64.StdEncoding.EncodeToString(signature), nil
-
 }
 
 func hashSum(b []byte) ([]byte, error) {
@@ -121,6 +110,7 @@ func hashSum(b []byte) ([]byte, error) {
 	return msgHash.Sum(nil), nil
 }
 
+// Digest returns a string representing the base64 encoded hashSum of a byte array
 func Digest(b []byte) (string, error) {
 	hashSum, err := hashSum(b)
 	if err != nil {
@@ -133,6 +123,7 @@ func Digest(b []byte) (string, error) {
 	return string(digest), nil
 }
 
+// Check validates the signature given a message and public key string
 func Check(msg string, signatureString string, publicKeyString string) error {
 	publicKey, err := ReadPublicKey([]byte(publicKeyString))
 	if err != nil {
@@ -231,7 +222,7 @@ func VerifyRequest(req *http.Request, content []byte, fetchPublicKeyString func(
 	for _, v := range strings.Split(sighdr, ",") {
 		m := re_sighdrval.FindStringSubmatch(v)
 		if len(m) != 3 {
-			return keyname, fmt.Errorf("bad scan: %s from %s\n", v, sighdr)
+			return keyname, fmt.Errorf("bad scan: %s from %s", v, sighdr)
 		}
 		switch m[1] {
 		case "keyId":
