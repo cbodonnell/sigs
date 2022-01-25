@@ -208,7 +208,7 @@ func SignRequest(req *http.Request, data []byte, privateKey string, keyID string
 
 // Verify the Signature header for a request is valid.
 // The request body should be provided separately.
-// The lookupPubkey function takes a keyname and returns a public key.
+// The fetchPublicKeyString function takes a keyname and returns a public key.
 // Returns keyname if known, and/or error.
 func VerifyRequest(req *http.Request, content []byte, fetchPublicKeyString func(string) (string, error)) (string, error) {
 	sighdr := req.Header.Get("Signature")
